@@ -1,3 +1,2 @@
 slack:
-  team: team-name
-  token: integration-token
+  url: Web hook url from Incoming WebHooks like https://hooks.slack.com/services/MMM/MMM/MMMM

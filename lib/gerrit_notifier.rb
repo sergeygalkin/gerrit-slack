@@ -51,13 +51,9 @@ class GerritNotifier
 
           if @@buffer.size > 0 && !ENV['DEVELOPMENT']
             @@buffer.each do |channel, messages|
-              notifier = Slack::Notifier.new slack_config['team'], slack_config['token']
-              notifier.ping(messages.join("\n\n"),
-                channel: channel,
-                username: 'gerrit',
-                icon_emoji: ':dragon_face:',
-                link_names: 1
-              )
+              puts "send #{messages.join("\n\n")} to #{channel}"
+              notifier = Slack::Notifier.new slack_config['url']
+              notifier.ping(messages.join("\n\n"))
             end
           end
 
