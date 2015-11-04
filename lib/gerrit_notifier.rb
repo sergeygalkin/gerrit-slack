@@ -92,45 +92,45 @@ class GerritNotifier
     # Jenkins update
     if update.jenkins?
       if update.build_successful? && !update.wip?
-        notify channels, "#{update.commit} *passed* Jenkins and is ready for *code review*"
+        notify channels, "#{update.commit} *passed* Jenkins and is ready for *code review* :+1:"
       elsif update.build_failed? && !update.build_aborted?
-        notify_user update.owner, "#{update.commit_without_owner} *failed* on Jenkins"
+        notify_user update.owner, "#{update.commit_without_owner} *failed* on Jenkins :-1:"
       end
     end
 
     # Code review +2
     if update.code_review_approved?
-      notify channels, "#{update.author_slack_name} has *+2'd* #{update.commit}: ready for *QA*"
+      notify channels, "#{update.author_slack_name} has *+2'd* #{update.commit}: ready for *QA* :+1:"
     end
 
     # Code review +1
     if update.code_review_tentatively_approved?
-      notify channels, "#{update.author_slack_name} has *+1'd* #{update.commit}: needs another set of eyes for *code review*"
+      notify channels, "#{update.author_slack_name} has *+1'd* #{update.commit}: needs another set of eyes for *code review* :+1: :eyes:"
     end
 
     # QA/Product
     if update.qa_approved? && update.product_approved?
-      notify channels, "#{update.author_slack_name} has *QA/Product-approved* #{update.commit}!", ":mj: :victory:"
+      notify channels, "#{update.author_slack_name} has *QA/Product-approved* #{update.commit}!", ":+1:"
     elsif update.qa_approved?
-      notify channels, "#{update.author_slack_name} has *QA-approved* #{update.commit}!", ":mj:"
+      notify channels, "#{update.author_slack_name} has *QA-approved* #{update.commit}!", "+1:"
     elsif update.product_approved?
-      notify channels, "#{update.author_slack_name} has *Product-approved* #{update.commit}!", ":victory:"
+      notify channels, "#{update.author_slack_name} has *Product-approved* #{update.commit}!", ":+1:"
     end
 
     # Any minuses (Code/Product/QA)
     if update.minus_1ed? || update.minus_2ed?
       verb = update.minus_1ed? ? "-1'd" : "-2'd"
-      notify channels, "#{update.author_slack_name} has *#{verb}* #{update.commit}"
+      notify channels, "#{update.author_slack_name} has *#{verb}* #{update.commit} :-1:"
     end
 
     # New comment added
     if update.comment_added? && update.human? && update.comment != ''
-      notify channels, "#{update.author_slack_name} has left comments on #{update.commit}: \"#{update.comment}\""
+      notify channels, "#{update.author_slack_name} has left comments on #{update.commit}: \"#{update.comment}\" :writing_hand:"
     end
 
     # Merged
     if update.merged?
-      notify channels, "#{update.commit} was merged! \\o/", ":yuss: :dancing_cool:"
+      notify channels, "#{update.commit} was merged! \\o/", ":clap: :+1:"
     end
   end
 end
