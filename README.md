@@ -10,8 +10,10 @@ A daemon that sends updates to Slack channels as noteworthy events happen on Ger
   * Merges
   * Failed builds (sent to owner via slackbot DM)
 
-Also daemon add comment to JIRA ticket about patchset created. Review in Gerrit
-should have line like this `Issue: PROJ-5` where `PROJ-5` is ID in JIRA
+Also daemon add comment to JIRA ticket about patchset created and try to move
+ticket in ToBuild state (state ID is hardcoded) after merge.
+
+Review in Gerrit should have line like this `Issue: PROJ-5` where `PROJ-5` is ID in JIRA.
 
 Tested with Gerrit 2.14.7, Slack and cloud JIRA on March 2018
 

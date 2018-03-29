@@ -68,7 +68,7 @@ class GerritNotifier
               if channel =~ /jira-\w{8}/
                   log "[#{Time.now}] JIRA comment found"
                   if messages[0] =~ /ToBuild/
-                      # 711 это To Build
+                      # 711 is To Build
                       comment = { "transition" => { "id" => "711" }}.to_json
                       uri = URI.parse("https://#{jira_config['site']}/rest/api/2/issue/#{messages[1]}/transitions")
                   else
@@ -170,4 +170,3 @@ class GerritNotifier
     end
   end
 end
-
