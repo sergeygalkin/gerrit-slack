@@ -7,10 +7,10 @@ class ChannelConfig
     @config.keys
   end
 
-  def channels_to_notify(project, owner)
+  def channels_to_notify(project)
     @config.select { |channel, opts|
       opts['project'].include?("#{project}*") ||
-      (opts['project'].include?(project) && opts['owner'].include?(owner))
+      (opts['project'].include?(project))
     }.keys
   end
 

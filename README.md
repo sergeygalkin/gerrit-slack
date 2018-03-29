@@ -10,6 +10,14 @@ A daemon that sends updates to Slack channels as noteworthy events happen on Ger
   * Merges
   * Failed builds (sent to owner via slackbot DM)
 
+Also daemon add comment to JIRA ticket about patchset created. Review in Gerrit
+should have line like this `Issue: PROJ-5` where `PROJ-5` is ID in JIRA
+
+Tested with Gerrit 2.14.7, Slack and cloud JIRA on March 2018
+
+## Known issues
+Sometimes create a lot of ssh zombie process. Workaround is every day restart at night.
+
 ## Configuration
 
 Sample configuration files are provided in `config`.
@@ -52,7 +60,3 @@ In order to ping a user on slack (e.g. for DMs on failed builds, or to @mention 
 Run the integration with DEVELOPMENT set to true to see more debug output and to *not* actually send updates to Slack.
 
     DEVELOPMENT=1 bin/gerrit-slack
-
-## Running tests
-
-    rspec

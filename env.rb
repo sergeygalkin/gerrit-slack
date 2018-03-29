@@ -1,5 +1,10 @@
 require 'rubygems'
 require 'bundler/setup'
+require 'uri'
+require 'net/http'
+require 'net/https'
+
+
 
 Bundler.require
 

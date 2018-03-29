@@ -27,10 +27,24 @@ class GerritNotifier
     add_to_buffer channel, msg
   end
 
-  def self.add_to_buffer(channel, msg)
+  def self.log(msg)
+    puts "#{msg}"
+    open('/var/log/slack-bot/slack-bot.log', 'a') do |f|
+        f.puts "#{msg}"
+    end
+  end
+
+  def self.notify_jira(msg, issue)
+    log "[#{Time.now}] Issue  - #{issue}"
+    id = (0...8).map { (65 + rand(26)).chr }.join
+    add_to_buffer "jira-#{id}", msg, issue
+  end
+
+  def self.add_to_buffer(channel, msg, issue='')
     @@semaphore.synchronize do
       @@buffer[channel] ||= []
       @@buffer[channel] << msg
+      @@buffer[channel] << issue
     end
   end
 
@@ -39,27 +53,44 @@ class GerritNotifier
     # to conserve slack-log
     Thread.new do
       slack_config = YAML.load(File.read('config/slack.yml'))['slack']
+      jira_config = YAML.load(File.read('config/jira.yml'))['jira']
 
       while true
         @@semaphore.synchronize do
           if @@buffer == {}
-            puts "[#{Time.now}] Buffer is empty"
+            log "[#{Time.now}] Buffer is empty"
           else
-            puts "[#{Time.now}] Current buffer:"
+            log "[#{Time.now}] Current buffer:"
             ap @@buffer
           end
-
-          if @@buffer.size > 0 && !ENV['DEVELOPMENT']
+          if @@buffer.size > 0
             @@buffer.each do |channel, messages|
-              puts "send #{messages.join("\n\n")} to #{channel}"
-              notifier = Slack::Notifier.new slack_config['url']
-              notifier.ping(messages.join("\n\n"))
-            end
+              if channel =~ /jira-\w{8}/
+                  log "[#{Time.now}] JIRA comment found"
+                  if messages[0] =~ /ToBuild/
+                      # 711 это To Build
+                      comment = { "transition" => { "id" => "711" }}.to_json
+                      uri = URI.parse("https://#{jira_config['site']}/rest/api/2/issue/#{messages[1]}/transitions")
+                  else
+                      comment = { "body" => "#{messages[0]}" }.to_json
+                      uri = URI.parse("https://#{jira_config['site']}/rest/api/2/issue/#{messages[1]}/comment")
+                  end
+                  https = Net::HTTP.new(uri.host,uri.port)
+                  https.use_ssl = true
+                  req = Net::HTTP::Post.new(uri.path, initheader = {'Content-Type' =>'application/json'})
+                  req.basic_auth "#{jira_config['user']}", "#{jira_config['password']}"
+                  req.body = "#{comment}"
+                  res = https.request(req)
+                  log "[#{Time.now}] Response #{res.code} #{res.message}: #{res.body}"
+	            else
+                  puts "send #{messages.join("\n\n")}to #{channel}"
+                  notifier = Slack::Notifier.new slack_config['token']
+                  notifier.ping(messages.join("\n\n"))
+              end
+           end
           end
-
           @@buffer = {}
         end
-
         sleep 15
       end
     end
@@ -67,7 +98,7 @@ class GerritNotifier
 
   def self.listen_for_updates
     stream = YAML.load(File.read('config/gerrit.yml'))['gerrit']['stream']
-    puts "Listening to stream via #{stream}"
+    log "[#{Time.now}] Listening to stream via #{stream}"
 
     IO.popen(stream).each do |line|
       update = Update.new(line)
@@ -82,12 +113,15 @@ class GerritNotifier
   def self.process_update(update)
     if ENV['DEVELOPMENT']
       ap update.json
-      puts update.raw_json
+      log update.raw_json
     end
-
-    channels = @@channel_config.channels_to_notify(update.project, update.owner)
-
+    channels = @@channel_config.channels_to_notify(update.project)
     return if channels.size == 0
+    # New pachset
+    if update.patchset_created? && update.first_patchset?
+        #notify_jira "#{update.commit_jira}", update.get_issue[0]
+        update.get_issue.each { |x| notify_jira "#{update.commit_jira}", x}
+    end
 
     # Jenkins update
     if update.jenkins?
@@ -100,37 +134,40 @@ class GerritNotifier
 
     # Code review +2
     if update.code_review_approved?
-      notify channels, "#{update.author_slack_name} has *+2'd* #{update.commit}: ready for *QA* :+1:"
+      notify channels, "<@#{update.author_slack_name}> has *+2'd* #{update.commit}: ready for *QA* :+1:"
     end
 
     # Code review +1
     if update.code_review_tentatively_approved?
-      notify channels, "#{update.author_slack_name} has *+1'd* #{update.commit}: needs another set of eyes for *code review* :+1: :eyes:"
+      notify channels, "<@#{update.author_slack_name}> has *+1'd* #{update.commit}: needs another set of eyes for *code review* :+1: :eyes:"
     end
 
     # QA/Product
     if update.qa_approved? && update.product_approved?
-      notify channels, "#{update.author_slack_name} has *QA/Product-approved* #{update.commit}!", ":+1:"
+      notify channels, "<@#{update.author_slack_name}> has *QA/Product-approved* #{update.commit}!", ":+1:"
     elsif update.qa_approved?
-      notify channels, "#{update.author_slack_name} has *QA-approved* #{update.commit}!", "+1:"
+      notify channels, "<@#{update.author_slack_name}> has *QA-approved* #{update.commit}!", "+1:"
     elsif update.product_approved?
-      notify channels, "#{update.author_slack_name} has *Product-approved* #{update.commit}!", ":+1:"
+      notify channels, "<@#{update.author_slack_name}> has *Product-approved* #{update.commit}!", ":+1:"
     end
 
     # Any minuses (Code/Product/QA)
     if update.minus_1ed? || update.minus_2ed?
       verb = update.minus_1ed? ? "-1'd" : "-2'd"
-      notify channels, "#{update.author_slack_name} has *#{verb}* #{update.commit} :-1:"
+      notify channels, "<@#{update.author_slack_name}> has *#{verb}* #{update.commit} :-1:"
     end
 
     # New comment added
     if update.comment_added? && update.human? && update.comment != ''
-      notify channels, "#{update.author_slack_name} has left comments on #{update.commit}: \"#{update.comment}\" :writing_hand:"
+      notify channels, "<@#{update.author_slack_name}> has left comments on #{update.commit}: \"#{update.comment}\" :writing_hand:"
     end
 
     # Merged
     if update.merged?
       notify channels, "#{update.commit} was merged! \\o/", ":clap: :+1:"
+      #notify_jira "ToBuild", update.get_issue[0]
+      update.get_issue.each { |x| notify_jira "ToBuild", x}
     end
   end
 end
+

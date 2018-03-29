@@ -1,0 +1,4 @@
+jira:
+  site: jira.domain.com
+  user: jira_user
+  password: jira_password

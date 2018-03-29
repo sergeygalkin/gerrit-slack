@@ -1,6 +1,6 @@
 #!/bin/bash
-
+LOG=/var/log/slack-bot/slack-bot.log
 until ruby app.rb; do
-    echo "Server crashed with exit code $?.  Respawning.." >&2
+    echo "Server crashed with exit code $?.  Respawning.." | tee -a  ${LOG}
     sleep 1
 done

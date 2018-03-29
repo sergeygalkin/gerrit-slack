@@ -16,12 +16,24 @@ class Update
     json['change']['project'] if json['change']
   end
 
+  def patchset_number
+    json['patchSet']['number']
+  end
+
   def comment_added?
     type == 'comment-added'
   end
 
   def merged?
     type == 'change-merged'
+  end
+
+  def patchset_created?
+    type == 'patchset-created'
+  end
+
+  def first_patchset?
+    patchset_number == 1
   end
 
   def human?
@@ -44,6 +56,13 @@ class Update
     comment =~ /ABORTED/
   end
 
+  def get_issue
+    json['change']['commitMessage'].split("\n").each { |line|
+      next if line !~ /Issue:\s*\w+/
+      return line.scan(/MAG-\d+/)
+    }
+  end
+
   def comment
     frd_lines = []
     json['comment'].split("\n\n").each { |line|
@@ -55,11 +74,15 @@ class Update
   end
 
   def commit
-    "#{commit_without_owner} (by @#{slack_name_for owner})"
+    "#{commit_without_owner} (by <@#{slack_name_for owner}>)"
   end
 
   def commit_without_owner
     "<#{json['change']['url']}|[#{json['change']['project']}] #{sanitized_subject}>"
+  end
+
+  def commit_jira
+    "#{json['change']['url']} - #{json['change']['commitMessage'].split("\n")[0]}"
   end
 
   def owner
